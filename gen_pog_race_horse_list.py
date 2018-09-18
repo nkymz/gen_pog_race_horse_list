@@ -17,7 +17,7 @@ logger.propagate = False
 
 # logger.debug('hello')
 
-wb = openpyxl.load_workbook('/pdojo/POG_HorseList.xlsx')
+wb = openpyxl.load_workbook('C:/Users/nakay/Dropbox/POG/POG_HorseList.xlsx')
 wshl = wb["POHorseList"]
 
 age = wshl["B1"].value
@@ -71,7 +71,7 @@ DateList = soup.find('div', class_='DateList_Box')
 
 for DateItem in DateList.find_all('a'):
 
-    if DateItem.get('href').split('=')[-1][0] == 'p':
+    if DateItem.get('href').split('=')[-1][0] in 'np':
         continue
 
     target_url = 'http://race.netkeiba.com' + DateItem.get('href')
@@ -151,7 +151,7 @@ for DateItem in DateList.find_all('a'):
 
             t = h.find('td', class_=re.compile('^waku'))
             if t is None:
-                Frame = ''
+                Frame = '0'
             else:
                 Frame = t.string
 
@@ -189,7 +189,7 @@ for DateItem in DateList.find_all('a'):
 
 RHList.sort()
 
-f = open("/pdojo/PO_race_horse_list.html", mode="w")
+f = open("C:/Users/nakay/Dropbox/POG/PO_race_horse_list.html", mode="w")
 
 f.write("<p>\n</p>\n")
 
