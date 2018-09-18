@@ -198,7 +198,7 @@ prevRaceTime = None
 
 for i in RHList:
 
-    f.write("<!--" + str(i) + "-->")
+    f.write("<!--" + str(i) + "-->\n")
 
     date = i[1]
     RaceTime = i[2]
