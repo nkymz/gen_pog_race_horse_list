@@ -198,6 +198,8 @@ prevRaceTime = None
 
 for i in RHList:
 
+    f.write("<!--" + str(i) + "-->")
+
     date = i[1]
     RaceTime = i[2]
     track = i[3]
@@ -291,4 +293,4 @@ f.write('<p>※オッズはnetkeibaより取得したものです。</p>')
 
 f.close()
 
-wb.save('POG_HorseList.xlsx')
+wb.save('C:/Users/nakay/Dropbox/POG/POG_HorseList.xlsx')
