@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import os
 import re
 import time
 from logging import getLogger, StreamHandler, DEBUG
@@ -17,10 +18,33 @@ logger.propagate = False
 
 # logger.debug('hello')
 
-wb = openpyxl.load_workbook('C:/Users/nakay/Dropbox/POG/POG_HorseList.xlsx')
-wshl = wb["POHorseList"]
+path = os.getenv("HOMEDRIVE", "None") + os.getenv("HOMEPATH", "None") + "/Dropbox/POG/"
 
-age = wshl["B1"].value
+wbpath = (path + "POG_HorseList.xlsx").replace("\\", "/")
+htmlpath = (path + "PO_race_horse_list.html").replace("\\", "/")
+
+wb = openpyxl.load_workbook(wbpath)
+wshl = wb["POHorseList"]
+wsSettings = wb["Settings"]
+
+age = wsSettings["B1"].value
+login_id = wsSettings["B2"].value
+password = wsSettings["B3"].value
+
+LOGIN_INFO = {
+    'pid': 'login',
+    'action': 'auth',
+    'return_url2': '',
+    'mem_tp': '',
+    'login_id': login_id,
+    'pswd': password,
+    'auto_login': ''
+}
+
+mysession = requests.Session()
+login_url = "https://regist.netkeiba.com/account/"
+time.sleep(1)
+mypost = mysession.post(login_url, data=LOGIN_INFO)
 
 trow = 1
 
@@ -47,7 +71,7 @@ while wshl.cell(row=trow, column=1).value is not None:
         continue
 
     time.sleep(1)
-    r = requests.get(horseURLsp)
+    r = mysession.get(horseURLsp)
     soup = BeautifulSoup(r.content, 'lxml')
 
     horseNmNew = soup.find("p", class_="Name").string
@@ -64,7 +88,7 @@ POHList = [[cell.value for cell in row] for row in wshl["A1:F" + str(trow - 1)]]
 RHList = []
 
 target_url = 'http://race.netkeiba.com/?rf=navi'
-r = requests.get(target_url)  # requestsを使って、webから取得
+r = mysession.get(target_url)  # requestsを使って、webから取得
 soup = BeautifulSoup(r.text, 'lxml')  # 要素を抽出
 
 DateList = soup.find('div', class_='DateList_Box')
@@ -74,9 +98,11 @@ for DateItem in DateList.find_all('a'):
     if DateItem.get('href').split('=')[-1][0] in 'np':
         continue
 
+    race_mmdd = DateItem.get('href').split('=')[-1][1:3] + "/" + DateItem.get('href').split('=')[-1][3:5]
+
     target_url = 'http://race.netkeiba.com' + DateItem.get('href')
     time.sleep(1)
-    r = requests.get(target_url)  # requestsを使って、webから取得
+    r = mysession.get(target_url)  # requestsを使って、webから取得
     soup = BeautifulSoup(r.content, 'lxml')  # 要素を抽出
 
     prev_target_url = None
@@ -85,6 +111,9 @@ for DateItem in DateList.find_all('a'):
 
         # logger.info(str(race_url.get("href").split("=")[1])[0:4])
 
+        if not race_url.get("href").startswith("/?pid"):
+            break
+
         if len(race_url.get("href").split("=")[2].split("&")) > 1:
             raceID = race_url.get("href").split("=")[2].split("&")[0]
         else:
@@ -92,6 +121,30 @@ for DateItem in DateList.find_all('a'):
 
         if raceID[0] != "c":
             continue
+
+        race_date = raceID[1:5] + "/" + race_mmdd
+        if raceID[5:7] == "01":
+            track = "札幌"
+        elif raceID[5:7] == "02":
+            track = "函館"
+        elif raceID[5:7] == "03":
+            track = "福島"
+        elif raceID[5:7] == "04":
+            track = "新潟"
+        elif raceID[5:7] == "05":
+            track = "東京"
+        elif raceID[5:7] == "06":
+            track = "中山"
+        elif raceID[5:7] == "07":
+            track = "中京"
+        elif raceID[5:7] == "08":
+            track = "京都"
+        elif raceID[5:7] == "09":
+            track = "阪神"
+        elif raceID[5:7] == "10":
+            track = "小倉"
+        else:
+            track = "根岸"
 
         if str(race_url.get("href").split("=")[1])[0:4] != "race":
             continue
@@ -106,7 +159,7 @@ for DateItem in DateList.find_all('a'):
 
         prev_target_url = target_url
         time.sleep(1)
-        r = requests.get(target_url)  # requestsを使って、webから取得
+        r = mysession.get(target_url)  # requestsを使って、webから取得
         soup = BeautifulSoup(r.content, 'lxml')  # 要素を抽出
 
         dt_list = soup.find_all('dt', limit=2)
@@ -134,10 +187,6 @@ for DateItem in DateList.find_all('a'):
                 continue
 
         # logger.debug("PASS1")
-
-        title = soup.find('title')
-        date = title.string.split()[0]
-        track = title.string.split()[1]
 
         h_list = soup.find_all(class_='bml1')
 
@@ -176,31 +225,37 @@ for DateItem in DateList.find_all('a'):
 
             HorseURL = h.find('td', class_="txt_l horsename").find('div').find('a').get('href')
             Weight = h.find('td', class_="txt_l horsename").find_next('td').find_next('td').string
-            Jockey = h.find_all('td', class_='txt_l', limit=2)[1].find('a').string
-            Odds = h.find('td', class_='txt_r').string
-            PopRank = h.find('td', class_='txt_r').find_next('td').string
-            SortKey = date + RaceTime + HorseNo + HorseName
+            if not h.find_all('td', class_='txt_l', limit=2)[1].find('a'):
+                Jockey = None
+            else:
+                Jockey = h.find_all('td', class_='txt_l', limit=2)[1].find('a').string
+            if not h.find('td', class_='txt_r'):
+                Odds = None
+                PopRank = None
+            else:
+                Odds = h.find('td', class_='txt_r').string
+                PopRank = h.find('td', class_='txt_r').find_next('td').string
+            SortKey = race_date + RaceNo + RaceTime + HorseNo + HorseName
 
             # logger.debug(course)
             # noinspection PyUnboundLocalVariable,PyUnboundLocalVariable,PyUnboundLocalVariable
             RHList.append(
-                [SortKey, date, RaceTime, track, RaceNo, RaceName, Grade, course, RaceCond1, RaceCond2, HorseNo, Frame,
-                 HorseName, Jockey, Odds, PopRank, Weight, target_url, HorseURL, owner, origin, isSeal])
+                [SortKey, race_date, RaceTime, track, RaceNo, RaceName, Grade, course, RaceCond1, RaceCond2, HorseNo, Frame,
+                 HorseName, Jockey, Odds, PopRank, Weight, target_url, HorseURL, owner, origin,"00", isSeal])
 
 RHList.sort()
 
-f = open("C:/Users/nakay/Dropbox/POG/PO_race_horse_list.html", mode="w")
-
-f.write("<p>\n</p>\n")
+f = open(htmlpath, mode="w")
 
 prevDate = None
+prev_race_no = None
 prevRaceTime = None
 
 for i in RHList:
 
     f.write("<!--" + str(i) + "-->\n")
 
-    date = i[1]
+    race_date = i[1]
     RaceTime = i[2]
     track = i[3]
     RaceNo = i[4]
@@ -218,7 +273,7 @@ for i in RHList:
     HorseURL = i[18]
     owner = i[19]
     origin = i[20]
-    isSeal = i[21]
+    isSeal = i[22]
     sp = ' '
 
     if GradeTemp == "g1":
@@ -257,18 +312,18 @@ for i in RHList:
     else:
         Frame = None
 
-    s = '<h4>' + date + '</h4>\n'
+    s = '<h4>' + race_date + '</h4>\n'
     if prevDate is None:
         f.write(s)
-    elif date != prevDate:
+    elif race_date != prevDate:
         f.write('</ul></li></ul>' + s)
 
     s = '<li> <a href="' + RaceURL + '">' + track + RaceNo + sp + RaceName + Grade + '</a><br />\n'
     s2 = RaceTime + sp + course + sp + RaceCond2 + '<br />\n<ul>'
-    if prevDate is None or (prevDate is not None and date != prevDate):
+    if prevDate is None or (prevDate is not None and race_date != prevDate):
         f.write('<ul>' + s)
         f.write(s2)
-    elif date + RaceTime != prevDate + prevRaceTime:
+    elif race_date + RaceNo + RaceTime != prevDate + prev_race_no + prevRaceTime:
         f.write('</ul></li>' + s)
         f.write(s2)
 
@@ -285,7 +340,8 @@ for i in RHList:
         f.write(Jockey + '騎手<br />\n')
     f.write('</li>\n')
 
-    prevDate = date
+    prevDate = race_date
+    prev_race_no = RaceNo
     prevRaceTime = RaceTime
 
 f.write('</ul></li></ul><p>終末オーナーLOVEPOP</p>\n')
@@ -293,4 +349,4 @@ f.write('<p>※オッズはnetkeibaより取得したものです。</p>')
 
 f.close()
 
-wb.save('C:/Users/nakay/Dropbox/POG/POG_HorseList.xlsx')
+wb.save(wbpath)
