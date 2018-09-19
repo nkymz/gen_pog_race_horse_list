@@ -9,7 +9,6 @@ from logging import getLogger, StreamHandler, DEBUG
 import openpyxl
 import requests
 from bs4 import BeautifulSoup
-import pprint
 
 logger = getLogger(__name__)
 handler = StreamHandler()
@@ -19,6 +18,8 @@ logger.addHandler(handler)
 logger.propagate = False
 
 # logger.debug('hello')
+
+WEEKDAY = ["(月)", "(火)", "(水)", "(木)", "(金)", "(土)", "(日)"]
 
 mytoday = datetime.date.today()
 mynow = datetime.datetime.today()
@@ -174,12 +175,14 @@ for DateItem in DateList.find_all('a'):
             odds = None
             pop_rank = None
         else:
-            Odds = horse_row.find('td', class_='txt_r').string
-            PopRank = horse_row.find('td', class_='txt_r').find_next('td').string
+            odds = horse_row.find('td', class_='txt_r').string
+            pop_rank = horse_row.find('td', class_='txt_r').find_next('td').string
 
         race_date2 = datetime.date(race_year, race_month, race_day)
+        race_date = race_date + WEEKDAY[race_date2.weekday()]
 
         result = "00"
+        result_url = None
         if race_date2 < mytoday or (race_date2 == mytoday and mynow.hour >= 17):
             result_url = race_url.replace("race_old", "race") + "&mode=result"
             time.sleep(1)
@@ -189,258 +192,126 @@ for DateItem in DateList.find_all('a'):
             horse_row = horse_tag.find_previous("tr")
             result = ("0" + horse_row.find("td", class_="result_rank").string)[-2:]
 
-        sort_key = race_date + race_no + race_time + result + horse_no + horse_name
+        sort_key = race_date + race_time + race_no + track + result + horse_no + horse_name
 
         race_horse_list.append(
                 [sort_key, race_date, race_time, track, race_no, race_name, grade, course, race_cond1, race_cond2,
                  horse_no, box_no, horse_name, jockey, odds, pop_rank, race_url, horse_url, owner, origin, result,
-                 status, isSeal])
+                 status, isSeal, result_url])
 
-    # pprint.pprint(race_horse_list)
+race_horse_list.sort()
 
-#     prev_target_url = None
-#
-#
-#     for race_url in soup.find_all('a'):
-#
-#         # logger.info(str(race_url.get("href").split("=")[1])[0:4])
-#
-#         if not race_url.get("href").startswith("/?pid"):
-#             break
-#
-#         if len(race_url.get("href").split("=")[2].split("&")) > 1:
-#             raceID = race_url.get("href").split("=")[2].split("&")[0]
-#         else:
-#             raceID = race_url.get("href").split("=")[2]
-#
-#         if raceID[0] != "c":
-#             continue
-#
-#         race_date = raceID[1:5] + "/" + race_mmdd
-#         if raceID[5:7] == "01":
-#             track = "札幌"
-#         elif raceID[5:7] == "02":
-#             track = "函館"
-#         elif raceID[5:7] == "03":
-#             track = "福島"
-#         elif raceID[5:7] == "04":
-#             track = "新潟"
-#         elif raceID[5:7] == "05":
-#             track = "東京"
-#         elif raceID[5:7] == "06":
-#             track = "中山"
-#         elif raceID[5:7] == "07":
-#             track = "中京"
-#         elif raceID[5:7] == "08":
-#             track = "京都"
-#         elif raceID[5:7] == "09":
-#             track = "阪神"
-#         elif raceID[5:7] == "10":
-#             track = "小倉"
-#         else:
-#             track = "根岸"
-#
-#         if str(race_url.get("href").split("=")[1])[0:4] != "race":
-#             continue
-#
-#         if race_url.get("title")[0:3] == "３歳上" or (age == 2 and race_url.get("title")[0:2] == "３歳"):
-#             continue
-#
-#         target_url = 'http://race.netkeiba.com/?pid=race_old&id=' + raceID
-#
-#         if target_url == prev_target_url:
-#             continue
-#
-#         prev_target_url = target_url
-#         time.sleep(1)
-#         r = mysession.get(target_url)  # requestsを使って、webから取得
-#         soup = BeautifulSoup(r.content, 'lxml')  # 要素を抽出
-#
-#         dt_list = soup.find_all('dt', limit=2)
-#
-#         RaceNo = ("0" + dt_list[1].string.strip())[-3:]
-#
-#         h1_list = soup.find_all('h1')
-#         RaceName = h1_list[1].contents[0].strip()
-#         # print(len(h1_list[1].contents))
-#         if len(h1_list[1].contents) > 1:
-#             GradeTemp = str(h1_list[1].contents[1])
-#             Grade = GradeTemp.split('_')[-2]
-#         else:
-#             Grade = ''
-#
-#         RaceAtrb_list = h1_list[1].find_all_next('p', limit=4)
-#         course = RaceAtrb_list[0].string.strip()
-#         RaceTime = RaceAtrb_list[1].string[-5:]
-#         RaceCond1 = RaceAtrb_list[2].string
-#         RaceCond2 = RaceAtrb_list[3].string
-#
-#         if len(RaceCond1.split()) > 1:
-#             if RaceCond1.split()[1][0:2] == "障害" or RaceCond1.split()[1][0:3] == "３歳上" or (
-#                     age == 2 and RaceCond1.split()[1][0:2] == "３歳"):
-#                 continue
-#
-#         # logger.debug("PASS1")
-#
-#         h_list = soup.find_all(class_='bml1')
-#
-#         for h in h_list:
-#
-#             t = h.find('td', class_='umaban')
-#             if t is None:
-#                 HorseNo = '00'
-#             else:
-#                 HorseNo = ("0" + t.string)[-2:]
-#
-#             t = h.find('td', class_=re.compile('^waku'))
-#             if t is None:
-#                 Frame = '0'
-#             else:
-#                 Frame = t.string
-#
-#             HorseName = h.find('td', class_="txt_l horsename").find('div').find('a').string
-#
-#             isFind = False
-#             for POHItem in POHList:
-#                 # logger.info(HorseName + " " + POHItem[1])
-#                 if HorseName == POHItem[1]:
-#                     owner = POHItem[0].strip()
-#                     isFind = True
-#                     origin = POHItem[2]
-#                     if POHItem[5] == "封印":
-#                         isSeal = True
-#                     else:
-#                         isSeal = False
-#
-#             if not isFind:
-#                 continue
-#
-#             # logger.debug(h)
-#
-#             HorseURL = h.find('td', class_="txt_l horsename").find('div').find('a').get('href')
-#             Weight = h.find('td', class_="txt_l horsename").find_next('td').find_next('td').string
-#             if not h.find_all('td', class_='txt_l', limit=2)[1].find('a'):
-#                 Jockey = None
-#             else:
-#                 Jockey = h.find_all('td', class_='txt_l', limit=2)[1].find('a').string
-#             if not h.find('td', class_='txt_r'):
-#                 Odds = None
-#                 PopRank = None
-#             else:
-#                 Odds = h.find('td', class_='txt_r').string
-#                 PopRank = h.find('td', class_='txt_r').find_next('td').string
-#             SortKey = race_date + RaceNo + RaceTime + HorseNo + HorseName
-#
-#             # logger.debug(course)
-#             # noinspection PyUnboundLocalVariable,PyUnboundLocalVariable,PyUnboundLocalVariable
-#             RHList.append(
-#                 [SortKey, race_date, RaceTime, track, RaceNo, RaceName, Grade, course, RaceCond1, RaceCond2, HorseNo, Frame,
-#                  HorseName, Jockey, Odds, PopRank, Weight, target_url, HorseURL, owner, origin,"00", isSeal])
-#
-# RHList.sort()
-#
-# f = open(htmlpath, mode="w")
-#
-# prevDate = None
-# prev_race_no = None
-# prevRaceTime = None
-#
-# for i in RHList:
-#
-#     f.write("<!--" + str(i) + "-->\n")
-#
-#     race_date = i[1]
-#     RaceTime = i[2]
-#     track = i[3]
-#     RaceNo = i[4]
-#     RaceName = i[5]
-#     GradeTemp = i[6]
-#     course = i[7].replace("\xa0", " ")
-#     RaceCond2 = i[9].replace("\xa0", " ")
-#     HorseNo = i[10]
-#     BoxNo = i[11]
-#     HorseName = i[12]
-#     Jockey = i[13]
-#     Odds = i[14]
-#     PopRank = i[15]
-#     RaceURL = i[17]
-#     HorseURL = i[18]
-#     owner = i[19]
-#     origin = i[20]
-#     isSeal = i[22]
-#     sp = ' '
-#
-#     if GradeTemp == "g1":
-#         Grade = "[GI]"
-#     elif GradeTemp == "g2":
-#         Grade = "[GII}"
-#     elif GradeTemp == "g3":
-#         Grade = "[GIII]"
-#     elif GradeTemp == "jg1":
-#         Grade = "[JGI]"
-#     elif GradeTemp == "jg2":
-#         Grade = "[JGII]"
-#     elif GradeTemp == "jg3":
-#         Grade = "[JGIII]"
-#     elif GradeTemp == "op":
-#         Grade = "[OP]"
-#     else:
-#         Grade = ""
-#
-#     if BoxNo == "1":
-#         Frame = '<span style="border: 1px solid; background-color:#ffffff; color:#000000;">1</span> '
-#     elif BoxNo == "2":
-#         Frame = '<span style="border: 1px solid; background-color:#000000; color:#ffffff;">2</span> '
-#     elif BoxNo == "3":
-#         Frame = '<span style="border: 1px solid; background-color:#ff0000; color:#ffffff;">3</span> '
-#     elif BoxNo == "4":
-#         Frame = '<span style="border: 1px solid; background-color:#0000ff; color:#ffffff;">4</span> '
-#     elif BoxNo == "5":
-#         Frame = '<span style="border: 1px solid; background-color:#ffff00; color:#000000;">5</span> '
-#     elif BoxNo == "6":
-#         Frame = '<span style="border: 1px solid; background-color:#00ff00; color:#ffffff;">6</span> '
-#     elif BoxNo == "7":
-#         Frame = '<span style="border: 1px solid; background-color:#ff8000; color:#000000;">7</span> '
-#     elif BoxNo == "8":
-#         Frame = '<span style="border: 1px solid; background-color:#ff8080; color:#000000;">8</span> '
-#     else:
-#         Frame = None
-#
-#     s = '<h4>' + race_date + '</h4>\n'
-#     if prevDate is None:
-#         f.write(s)
-#     elif race_date != prevDate:
-#         f.write('</ul></li></ul>' + s)
-#
-#     s = '<li> <a href="' + RaceURL + '">' + track + RaceNo + sp + RaceName + Grade + '</a><br />\n'
-#     s2 = RaceTime + sp + course + sp + RaceCond2 + '<br />\n<ul>'
-#     if prevDate is None or (prevDate is not None and race_date != prevDate):
-#         f.write('<ul>' + s)
-#         f.write(s2)
-#     elif race_date + RaceNo + RaceTime != prevDate + prev_race_no + prevRaceTime:
-#         f.write('</ul></li>' + s)
-#         f.write(s2)
-#
-#     if isSeal:
-#         f.write('<li> <a href="' + HorseURL + '"><s>' + HorseName + '</s>' + owner + '</a> <br />\n')
-#     else:
-#         f.write('<li> <a href="' + HorseURL + '">' + HorseName + owner + '</a> <br />\n')
-#     f.write(origin + '<br />\n')
-#     if Odds is not None:
-#         f.write(str(Odds) + '倍' + sp + str(PopRank) + '番人気<br />\n')
-#     if HorseNo != "00":
-#         f.write(Frame + str(HorseNo) + '番' + sp + Jockey + '騎手<br />\n')
-#     elif Jockey is not None:
-#         f.write(Jockey + '騎手<br />\n')
-#     f.write('</li>\n')
-#
-#     prevDate = race_date
-#     prev_race_no = RaceNo
-#     prevRaceTime = RaceTime
-#
-# f.write('</ul></li></ul><p>終末オーナーLOVEPOP</p>\n')
-# f.write('<p>※オッズはnetkeibaより取得したものです。</p>')
-#
-# f.close()
+f = open(htmlpath, mode="w")
+
+prev_date = None
+prev_race_no = None
+prev_race_time = None
+prev_track = None
+
+for i in race_horse_list:
+
+    f.write("<!--" + str(i) + "-->\n")
+
+    race_date = i[1]
+    race_time = i[2]
+    track = i[3]
+    race_no = i[4]
+    race_name = i[5]
+    grade = i[6]
+    course = i[7].replace("\xa0", " ")
+    race_cond2 = i[9].replace("\xa0", " ")
+    horse_no = i[10]
+    box_no = i[11]
+    horse_name = i[12]
+    jockey = i[13]
+    odds = i[14]
+    pop_rank = i[15]
+    race_url = i[16]
+    horse_url = i[17]
+    owner = i[18]
+    origin = i[19]
+    result = i[20]
+    status = i[21]
+    isSeal = i[22]
+    result_url = i[23]
+    sp = ' '
+    
+    if result != "00":
+        race_url = result_url
+        status = "【結果確定】"
+    elif horse_no != "00":
+        status = "【枠順確定】"
+    elif status == "出馬確定":
+        status = "【出走確定】"
+    else:
+        status = "【出走想定】"
+
+    if box_no == "1":
+        frame = '<span style="border: 1px solid; background-color:#ffffff; color:#000000;">1</span> '
+    elif box_no == "2":
+        frame = '<span style="border: 1px solid; background-color:#000000; color:#ffffff;">2</span> '
+    elif box_no == "3":
+        frame = '<span style="border: 1px solid; background-color:#ff0000; color:#ffffff;">3</span> '
+    elif box_no == "4":
+        frame = '<span style="border: 1px solid; background-color:#0000ff; color:#ffffff;">4</span> '
+    elif box_no == "5":
+        frame = '<span style="border: 1px solid; background-color:#ffff00; color:#000000;">5</span> '
+    elif box_no == "6":
+        frame = '<span style="border: 1px solid; background-color:#00ff00; color:#ffffff;">6</span> '
+    elif box_no == "7":
+        frame = '<span style="border: 1px solid; background-color:#ff8000; color:#000000;">7</span> '
+    elif box_no == "8":
+        frame = '<span style="border: 1px solid; background-color:#ff8080; color:#000000;">8</span> '
+    else:
+        frame = None
+
+    s = '<h4>' + race_date + '</h4>\n'
+    if prev_date is None:
+        f.write(s)
+    elif race_date != prev_date:
+        f.write('</ul></li></ul>' + s)
+
+    s = '<li> <a href="' + race_url + '">' + track + race_no + sp + race_name + status + '</a><br />\n'
+    s2 = race_time + sp + course + sp + race_cond2 + '<br />\n<ul>'
+    if prev_date is None or (prev_date is not None and race_date != prev_date):
+        f.write('<ul>' + s)
+        f.write(s2)
+    elif race_date + race_no + race_time + track != prev_date + prev_race_no + prev_race_time + prev_track:
+        f.write('</ul></li>' + s)
+        f.write(s2)
+
+    if result == "01":
+        s1 = '<span style="font-weight: 900; color:#FF0000;">1着</span>' + sp + '<li> <a href="' + horse_url + '">'
+    elif result == "02" and grade != "NG":
+        s1 = '<span style="font-weight: 700; color:#0000FF;">2着</span>' + sp + '<li> <a href="' + horse_url + '">'
+    elif result != "00":
+        s1 = result.lstrip() + '着' + sp + '<li> <a href="' + horse_url + '">'
+    else:
+        s1 = '<li> <a href="' + horse_url + '">'
+    if isSeal:
+        s2 = '<s>' + horse_name + '</s>'
+    else:
+        s2 = horse_name
+    f.write(s1 + s2 + owner + '</a> <br />\n')
+
+    f.write(origin + '<br />\n')
+
+    if odds is not None:
+        f.write(str(odds) + '倍' + sp + str(pop_rank) + '番人気<br />\n')
+    if horse_no != "00":
+        f.write(frame + str(horse_no) + '番' + sp + jockey + '騎手<br />\n')
+    elif jockey is not None:
+        f.write(jockey + '騎手<br />\n')
+    f.write('</li>\n')
+
+    prev_date = race_date
+    prev_race_no = race_no
+    prev_race_time = race_time
+    prev_track = track
+
+f.write('</ul></li></ul><p>終末オーナーLOVEPOP</p>\n')
+f.write('<p>※オッズはnetkeibaより取得したものです。</p>')
+
+f.close()
 
 wb.save(wbpath)
