@@ -241,7 +241,7 @@ for i in race_horse_list:
         status = "【結果確定】"
     elif horse_no != "00":
         status = "【枠順確定】"
-    elif status == "出馬確定":
+    elif status == "出走確定":
         status = "【出走確定】"
     else:
         status = "【出走想定】"
