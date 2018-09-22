@@ -281,11 +281,11 @@ for i in race_horse_list:
         f.write(s2)
 
     if result == "01":
-        s1 = '<span style="font-weight: 900; color:#FF0000;">1着</span>' + sp + '<li> <a href="' + horse_url + '">'
+        s1 = '<li><span style="font-weight: 900; color:#FF0000;">1着</span>' + sp + '<a href="' + horse_url + '">'
     elif result == "02" and grade != "NG":
-        s1 = '<span style="font-weight: 700; color:#0000FF;">2着</span>' + sp + '<li> <a href="' + horse_url + '">'
+        s1 = '<li><span style="font-weight: 700; color:#0000FF;">2着</span>' + sp + '<a href="' + horse_url + '">'
     elif result != "00":
-        s1 = result.lstrip() + '着' + sp + '<li> <a href="' + horse_url + '">'
+        s1 = "<li>" + result.lstrip("0") + '着' + sp + '<a href="' + horse_url + '">'
     else:
         s1 = '<li> <a href="' + horse_url + '">'
     if isSeal:
