@@ -309,11 +309,9 @@ for i in race_horse_list:
     prev_race_time = race_time
     prev_track = track
 
-f.write('</ul></li></ul><p>終末オーナーLOVEPOP</p>\n')
-
 s = str(mynow.year) + "/" + ("0" + str(mynow.month))[-2:] + "/" + ("0" + str(mynow.day))[-2:] \
     + WEEKDAY[mynow.weekday()] + " " + ("0" + str(mynow.hour))[-2:] + ":" + ("0" + str(mynow.minute))[-2:]
-f.write('<p>※' + s + ' 時点の情報より作成</p>')
+f.write('</ul></li></ul><p>※' + s + ' 時点の情報より作成</p>\n')
 
 f.close()
 
