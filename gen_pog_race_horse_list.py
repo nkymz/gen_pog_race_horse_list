@@ -299,9 +299,9 @@ for i in race_horse_list:
     if odds is not None:
         f.write(str(odds) + '倍' + sp + str(pop_rank) + '番人気<br />\n')
     if horse_no != "00":
-        f.write(frame + str(horse_no) + '番' + sp + jockey + '騎手<br />\n')
+        f.write(frame + str(horse_no) + '番' + sp + 'jockey<br />\n')
     elif jockey is not None:
-        f.write(jockey + '騎手<br />\n')
+        f.write('jockey<br />\n')
     f.write('</li>\n')
 
     prev_date = race_date
