@@ -52,6 +52,20 @@ login_url = "https://regist.netkeiba.com/account/"
 time.sleep(1)
 mypost = mysession.post(login_url, data=LOGIN_INFO)
 
+
+def get_training_result(horse_no, race_id):
+    global mysession
+
+    target_url = 'http://race.netkeiba.com/?pid=race_old&id=' + "c" + race_id + '&mode=oikiri'
+    r = mysession.get(target_url)  # requestsを使って、webから取得
+    soup = BeautifulSoup(r.content, 'lxml')  # 要素を抽出
+
+    training_result_row = soup.find("div", id="race_main").find("table").find_all("tr")[horse_no]
+    training_result_columns = training_result_row.find_all("td")
+    training_date = training_result_columns[3].text
+    return training_date
+
+
 trow = 1
 
 while wshl.cell(row=trow, column=1).value is not None:
@@ -192,6 +206,8 @@ for DateItem in DateList.find_all('a'):
             horse_row = horse_tag.find_previous("tr")
             result = ("0" + horse_row.find("td", class_="result_rank").string)[-2:]
 
+        aaaaaa = get_training_result(int(horse_no), race_id)
+
         sort_key = race_date + race_time + race_no + track + result + horse_no + horse_name
 
         race_horse_list.append(
@@ -316,3 +332,4 @@ f.write('</ul></li></ul><p>※' + s + ' 時点の情報より作成</p>\n')
 f.close()
 
 wb.save(wbpath)
+wb.close()
