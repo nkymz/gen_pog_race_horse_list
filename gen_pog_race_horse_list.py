@@ -53,26 +53,76 @@ time.sleep(1)
 mypost = mysession.post(login_url, data=LOGIN_INFO)
 
 
-def get_training_result(horse_no, race_id):
-    global mysession
-
-    target_url = 'http://race.netkeiba.com/?pid=race_old&id=' + "c" + race_id + '&mode=oikiri'
+def get_stable_comment(horse_no, race_id):
+    target_url = 'http://race.netkeiba.com/?pid=race_old&id=' + "c" + race_id + '&mode=comment'
+    time.sleep(1)
     r = mysession.get(target_url)  # requestsを使って、webから取得
     soup = BeautifulSoup(r.content, 'lxml')  # 要素を抽出
+
+    if not soup.find("div", class_="race_comment_box"):
+        return ""
+
+    stable_comment = ""
+    stable_comment_row = soup.find("div", class_="race_comment_box").find("table").find_all("tr")[horse_no]
+    stable_comment_columns = stable_comment_row.find_all("td")
+    stable_comment += stable_comment_columns[3].text + "【" + stable_comment_columns[4].text + "】"
+
+    return stable_comment
+
+
+def get_predictions(horse_no, race_id):
+    target_url = 'http://race.netkeiba.com/?pid=yoso&id=' + "c" + race_id
+    time.sleep(1)
+    r = mysession.get(target_url)  # requestsを使って、webから取得
+    soup = BeautifulSoup(r.content, 'lxml')  # 要素を抽出
+
+    prediction_header_text = [t.text for t in soup.find("div", id="race_main").find("table").find("tr").find_all("th")]
+    predictions = soup.find("div", id="race_main").find("table").find_all("tr")[horse_no].find_all("td")
+    prediction_marks = ""
+    if "\nCP予想\n" in prediction_header_text:
+        range_max = prediction_header_text.index("\nCP予想\n")
+    else:
+        range_max = prediction_header_text.index("馬名")
+    for i in range(2, range_max):
+        prediction_marks += predictions[i].text.strip() if predictions[i].text.strip("\n") in "◎○▲☆△" else "－"
+    return prediction_marks
+
+
+def get_training_result(horse_no, race_id):
+    target_url = 'http://race.netkeiba.com/?pid=race_old&id=' + "c" + race_id + '&mode=oikiri'
+    time.sleep(1)
+    r = mysession.get(target_url)  # requestsを使って、webから取得
+    soup = BeautifulSoup(r.content, 'lxml')  # 要素を抽出
+
+    if not soup.find("div", id="race_main").find("table"):
+        return "0000/00/00(火)", "", "", "", "", [], "", "", "", ""
 
     training_result_row = soup.find("div", id="race_main").find("table").find_all("tr")[horse_no]
     training_result_columns = training_result_row.find_all("td")
     training_date = training_result_columns[3].text
-    return training_date
+    if training_date.split("/")[0] == "0000":
+        return "0000/00/00(火)", "", "", "", "", [], "", "", "", ""
+    training_course = training_result_columns[4].text
+    training_course_condition = training_result_columns[5].text
+    training_jockey = training_result_columns[6].text
+    training_time_list = [t.text for t in training_result_columns[7].find("ul").find_all("li")]
+    training_result_texts_list = [t.text for t in training_result_columns[7].find_all("p")]
+    training_position = training_result_columns[8].text
+    training_stride = training_result_columns[9].text
+    training_eval_text = training_result_columns[10].text
+    training_eval_rank = training_result_columns[11].text
+
+    return training_date, training_course, training_course_condition, training_jockey, training_time_list, \
+        training_result_texts_list, training_position, training_stride, training_eval_text, training_eval_rank
 
 
-trow = 1
+xlrow = 1
 
-while wshl.cell(row=trow, column=1).value is not None:
+while wshl.cell(row=xlrow, column=1).value is not None:
     # print(trow)
 
-    horseNm = wshl.cell(row=trow, column=2).value
-    horseNmOrgn = wshl.cell(row=trow, column=3).value
+    horseNm = wshl.cell(row=xlrow, column=2).value
+    horseNmOrgn = wshl.cell(row=xlrow, column=3).value
 
     isHorseNmDtrmnd = False
 
@@ -82,12 +132,12 @@ while wshl.cell(row=trow, column=1).value is not None:
         isHorseNmDtrmnd = True
 
     if isHorseNmDtrmnd and horseNmOrgn is not None:
-        trow += 1
+        xlrow += 1
         continue
 
-    horseURLsp = wshl.cell(row=trow, column=5).value
+    horseURLsp = wshl.cell(row=xlrow, column=5).value
     if horseURLsp is None:
-        trow += 1
+        xlrow += 1
         continue
 
     time.sleep(1)
@@ -97,13 +147,13 @@ while wshl.cell(row=trow, column=1).value is not None:
     horseNmNew = soup.find("p", class_="Name").string
     horseNmOrgnNew = soup.find("th", string="馬名の意味").find_next().string
 
-    wshl.cell(row=trow, column=2).value = horseNmNew
+    wshl.cell(row=xlrow, column=2).value = horseNmNew
     if horseNmOrgnNew != "-":
-        wshl.cell(row=trow, column=3).value = horseNmOrgnNew
+        wshl.cell(row=xlrow, column=3).value = horseNmOrgnNew
 
-    trow += 1
+    xlrow += 1
 
-horse_list = [[cell.value for cell in row] for row in wshl["A1:F" + str(trow - 1)]]
+horse_list = [[cell.value for cell in row] for row in wshl["A1:F" + str(xlrow - 1)]]
 
 race_horse_list = []
 
@@ -206,14 +256,20 @@ for DateItem in DateList.find_all('a'):
             horse_row = horse_tag.find_previous("tr")
             result = ("0" + horse_row.find("td", class_="result_rank").string)[-2:]
 
-        aaaaaa = get_training_result(int(horse_no), race_id)
+        training_date, training_course, training_course_condition, training_jockey, training_time_list, \
+            training_result_texts_list, training_position, training_stride, training_eval_text, training_eval_rank \
+            = get_training_result(int(horse_no), race_id)
+        prediction_marks = get_predictions(int(horse_no), race_id)
+        stable_comment = get_stable_comment(int(horse_no), race_id)
 
         sort_key = race_date + race_time + race_no + track + result + horse_no + horse_name
 
         race_horse_list.append(
                 [sort_key, race_date, race_time, track, race_no, race_name, grade, course, race_cond1, race_cond2,
                  horse_no, box_no, horse_name, jockey, odds, pop_rank, race_url, horse_url, owner, origin, result,
-                 status, isSeal, result_url])
+                 status, isSeal, result_url, training_date, training_course, training_course_condition, training_jockey,
+                 training_time_list, training_result_texts_list, training_position, training_stride, training_eval_text,
+                 training_eval_rank, prediction_marks, stable_comment])
 
 race_horse_list.sort()
 
@@ -250,6 +306,11 @@ for i in race_horse_list:
     status = i[21]
     isSeal = i[22]
     result_url = i[23]
+    training_date, training_course, training_course_condition, training_jockey, training_time_list, \
+        training_result_texts_list, training_position, training_stride, training_eval_text, training_eval_rank, \
+        prediction_marks, stable_comment = i[24], i[25], i[26], i[27], i[28], i[29], i[30], i[31], i[32], i[33],\
+        i[34], i[35]
+
     sp = ' '
     
     if result != "00":
@@ -313,11 +374,24 @@ for i in race_horse_list:
     f.write(origin + '<br />\n')
 
     if odds is not None:
-        f.write(str(odds) + '倍' + sp + str(pop_rank) + '番人気<br />\n')
+        f.write(str(odds) + '倍' + sp + str(pop_rank) + '番人気' + sp + prediction_marks + '<br />\n')
     if horse_no != "00":
         f.write(frame + str(horse_no) + '番' + sp + jockey + '<br />\n')
     elif jockey is not None:
         f.write(jockey + '<br />\n')
+    if training_date[:4] != "0000":
+        s = '最終追切 ' + training_date.split("/")[1] + "/" + training_date.split("/")[2] + sp + training_course \
+            + training_position + sp + training_course_condition + sp + training_jockey + "<br />\n"
+        for t in training_time_list:
+            s += t + " " if t != "-" else ""
+        s += training_stride + "<br />\n"
+        for t in training_result_texts_list:
+            s += t + sp
+        s += "<br />\n" if training_result_texts_list else ""
+        s += training_eval_text + training_eval_rank + "<br />\n"
+        f.write(s)
+    if stable_comment != "":
+        f.write(stable_comment + "<br />\n")
     f.write('</li>\n')
 
     prev_date = race_date
@@ -327,7 +401,7 @@ for i in race_horse_list:
 
 s = str(mynow.year) + "/" + ("0" + str(mynow.month))[-2:] + "/" + ("0" + str(mynow.day))[-2:] \
     + WEEKDAY[mynow.weekday()] + " " + ("0" + str(mynow.hour))[-2:] + ":" + ("0" + str(mynow.minute))[-2:]
-f.write('</ul></li></ul><p>※' + s + ' 時点の情報より作成</p>\n')
+f.write('</ul></li></ul><p>' + s + ' 時点の情報より作成</p>\n')
 
 f.close()
 
