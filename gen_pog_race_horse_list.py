@@ -76,6 +76,9 @@ def get_predictions(horse_no, race_id):
     r = mysession.get(target_url)  # requestsを使って、webから取得
     soup = BeautifulSoup(r.content, 'lxml')  # 要素を抽出
 
+    if not soup.find("div", id="race_main").find("table"):
+        return ""
+
     prediction_header_text = [t.text for t in soup.find("div", id="race_main").find("table").find("tr").find_all("th")]
     predictions = soup.find("div", id="race_main").find("table").find_all("tr")[horse_no].find_all("td")
     prediction_marks = ""
