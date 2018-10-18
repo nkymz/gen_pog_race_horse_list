@@ -227,6 +227,8 @@ for DateItem in DateList.find_all('a'):
         race_cond2 = race_attrib_list[3].string
 
         horse_tag = soup.find("a", href=horse_url)
+        if not horse_tag:
+            continue
         horse_row = horse_tag.find_previous("tr")
         if not horse_row.find("td", class_="umaban"):
             horse_no = "00"
