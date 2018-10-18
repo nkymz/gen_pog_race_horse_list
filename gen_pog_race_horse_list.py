@@ -354,42 +354,43 @@ for i in race_horse_list:
         f.write('</ul></li></ul>' + s)
 
     s = '<li> <a href="' + race_url + '">' + track + race_no + sp + race_name + status + '</a><br />\n'
-    s2 = race_time + sp + course + sp + race_cond2 + '<br />\n<ul>'
+    s2 = race_time + sp + course + sp + race_cond2 + '<br />\n<ul style="margin-left:-1em;">'
     if prev_date is None or (prev_date is not None and race_date != prev_date):
-        f.write('<ul>' + s)
+        f.write('<ul style="margin-left:-1em;">' + s)
         f.write(s2)
     elif race_date + race_no + race_time + track != prev_date + prev_race_no + prev_race_time + prev_track:
         f.write('</ul></li>' + s)
         f.write(s2)
 
     if result == "01":
-        s1 = '<li><span style="font-weight: 900; color:#FF0000;">1着</span>' + sp + '<a href="' + horse_url + '">'
+        s1 = '<li><span style="font-weight: 900; color:#FF0000;">1着</span>' + sp + frame + str(horse_no) + sp \
+             + '<a href="' + horse_url + '">'
     elif result == "02" and grade != "NG":
-        s1 = '<li><span style="font-weight: 700; color:#0000FF;">2着</span>' + sp + '<a href="' + horse_url + '">'
+        s1 = '<li><span style="font-weight: 700; color:#0000FF;">2着</span>' + sp + frame + str(horse_no) + sp \
+             + '<a href="' + horse_url + '">'
     elif result != "00":
-        s1 = "<li>" + result.lstrip("0") + '着' + sp + '<a href="' + horse_url + '">'
+        s1 = "<li>" + result.lstrip("0") + '着' + sp + frame + str(horse_no) + sp + '<a href="' + horse_url + '">'
+    elif horse_no != "00":
+        s1 = '<li>' + frame + str(horse_no) + sp + '<a href="' + horse_url + '">'
     else:
         s1 = '<li> <a href="' + horse_url + '">'
     if isSeal:
         s2 = '<s>' + horse_name + '</s>'
     else:
         s2 = horse_name
-    f.write(s1 + s2 + owner + '</a> <br />\n')
+    s3 = sp + jockey if jockey else ""
+    f.write(s1 + s2 + owner + '</a>' + s3 + '<br />\n')
 
     f.write(origin + '<br />\n')
 
     if odds is not None:
         f.write(str(odds) + '倍' + sp + str(pop_rank) + '番人気' + sp + prediction_marks + '<br />\n')
-    if horse_no != "00":
-        f.write(frame + str(horse_no) + '番' + sp + jockey + '<br />\n')
-    elif jockey is not None:
-        f.write(jockey + '<br />\n')
     if training_date[:4] != "0000":
-        s = '最終追切 ' + training_date.split("/")[1] + "/" + training_date.split("/")[2] + sp + training_course \
-            + training_position + sp + training_course_condition + sp + training_jockey + "<br />\n"
+        s = training_jockey + sp + training_date.split("/")[1] + "/" + training_date.split("/")[2].split("(")[0] + sp \
+            + training_course + sp + training_course_condition + sp + training_stride + sp + "<br />\n"
         for t in training_time_list:
             s += t + " " if t != "-" else ""
-        s += training_stride + "<br />\n"
+        s += "[" + training_position + "]" + "<br />\n" if training_position else "<br />\n"
         for t in training_result_texts_list:
             s += t + sp
         s += "<br />\n" if training_result_texts_list else ""
