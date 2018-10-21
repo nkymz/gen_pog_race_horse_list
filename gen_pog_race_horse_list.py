@@ -57,7 +57,7 @@ def get_stable_comment(horse_no, race_id):
     target_url = 'http://race.netkeiba.com/?pid=race_old&id=' + "c" + race_id + '&mode=comment'
     time.sleep(1)
     r = mysession.get(target_url)  # requestsを使って、webから取得
-    soup = BeautifulSoup(r.content, 'lxml')  # 要素を抽出
+    soup = BeautifulSoup(r.content.decode("euc-jp", "ignore").encode("euc-jp"), 'lxml')  # 要素を抽出
 
     if not soup.find("div", class_="race_comment_box"):
         return ""
@@ -119,7 +119,7 @@ def get_training_result(horse_no, race_id):
         training_result_texts_list, training_position, training_stride, training_eval_text, training_eval_rank
 
 
-xlrow = 1
+xlrow = 2
 
 while wshl.cell(row=xlrow, column=1).value is not None:
     # print(trow)
@@ -156,7 +156,7 @@ while wshl.cell(row=xlrow, column=1).value is not None:
 
     xlrow += 1
 
-horse_list = [[cell.value for cell in row] for row in wshl["A1:F" + str(xlrow - 1)]]
+horse_list = [[cell.value for cell in row] for row in wshl["A2:F" + str(xlrow - 1)]]
 
 race_horse_list = []
 
