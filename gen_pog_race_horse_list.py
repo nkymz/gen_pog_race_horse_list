@@ -4,20 +4,10 @@ import os
 import re
 import datetime
 import time
-from logging import getLogger, StreamHandler, DEBUG
 
 import openpyxl
 import requests
 from bs4 import BeautifulSoup
-
-logger = getLogger(__name__)
-handler = StreamHandler()
-handler.setLevel(DEBUG)
-logger.setLevel(DEBUG)
-logger.addHandler(handler)
-logger.propagate = False
-
-# logger.debug('hello')
 
 WEEKDAY = ["(月)", "(火)", "(水)", "(木)", "(金)", "(土)", "(日)"]
 
@@ -70,7 +60,7 @@ def get_stable_comment(horse_no, race_id):
     return stable_comment
 
 
-def get_predictions(horse_no, race_id):
+def get_predictions(horse_name, race_id):
     target_url = 'http://race.netkeiba.com/?pid=yoso&id=' + "c" + race_id
     time.sleep(1)
     r = mysession.get(target_url)  # requestsを使って、webから取得
@@ -80,7 +70,11 @@ def get_predictions(horse_no, race_id):
         return ""
 
     prediction_header_text = [t.text for t in soup.find("div", id="race_main").find("table").find("tr").find_all("th")]
-    predictions = soup.find("div", id="race_main").find("table").find_all("tr")[horse_no].find_all("td")
+    hn_col_index = prediction_header_text.index("馬名")
+    table_rows = soup.find("div", id="race_main").find("table").find_all("tr")
+    horse_names = [t.find_all("td")[hn_col_index].text for i, t in enumerate(table_rows) if i > 0]
+    horse_index = horse_names.index(horse_name) + 1
+    predictions = soup.find("div", id="race_main").find("table").find_all("tr")[horse_index].find_all("td")
     if not predictions:
         return ""
     prediction_marks = ""
@@ -266,7 +260,7 @@ for DateItem in DateList.find_all('a'):
         training_date, training_course, training_course_condition, training_jockey, training_time_list, \
             training_result_texts_list, training_position, training_stride, training_eval_text, training_eval_rank \
             = get_training_result(int(horse_no), race_id)
-        prediction_marks = get_predictions(int(horse_no), race_id)
+        prediction_marks = get_predictions(horse_name, race_id)
         stable_comment = get_stable_comment(int(horse_no), race_id)
 
         sort_key = race_date + race_time + race_no + track + result + horse_no + horse_name
