@@ -81,6 +81,8 @@ def get_predictions(horse_no, race_id):
 
     prediction_header_text = [t.text for t in soup.find("div", id="race_main").find("table").find("tr").find_all("th")]
     predictions = soup.find("div", id="race_main").find("table").find_all("tr")[horse_no].find_all("td")
+    if not predictions:
+        return ""
     prediction_marks = ""
     if "\nCP予想\n" in prediction_header_text:
         range_max = prediction_header_text.index("\nCP予想\n")
