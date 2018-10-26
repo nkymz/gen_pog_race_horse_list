@@ -85,7 +85,7 @@ def get_predictions(horse_name, race_id):
     if "\nCP予想\n" in prediction_header_text:
         range_max = prediction_header_text.index("\nCP予想\n")
     else:
-        range_max = prediction_header_text.index("馬名")
+        range_max = hn_col_index
     for i in range(2, range_max):
         prediction_marks += predictions[i].text.strip() if predictions[i].text.strip("\n") in "◎○▲☆△" else "－"
     return prediction_marks
