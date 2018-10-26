@@ -255,7 +255,7 @@ for DateItem in DateList.find_all('a'):
             soup = BeautifulSoup(r.content, 'lxml')  # 要素を抽出
             horse_tag = soup.find("a", href=horse_url)
             horse_row = horse_tag.find_previous("tr")
-            result = ("0" + horse_row.find("td", class_="result_rank").string)[-2:]
+            result = horse_row.find("td", class_="result_rank").string.zfiff(2)
 
         training_date, training_course, training_course_condition, training_jockey, training_time_list, \
             training_result_texts_list, training_position, training_stride, training_eval_text, training_eval_rank \
@@ -263,7 +263,7 @@ for DateItem in DateList.find_all('a'):
         prediction_marks = get_predictions(horse_name, race_id)
         stable_comment = get_stable_comment(int(horse_no), race_id)
 
-        sort_key = race_date + race_time + race_no + track + result + horse_no + horse_name
+        sort_key = race_date + race_time + race_no + track + result + horse_no.zfill(2) + horse_name
 
         race_horse_list.append(
                 [sort_key, race_date, race_time, track, race_no, race_name, grade, course, race_cond1, race_cond2,
