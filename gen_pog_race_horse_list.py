@@ -4,12 +4,16 @@ import os
 import re
 import datetime
 import time
+import sys
 
 import openpyxl
 import requests
 from bs4 import BeautifulSoup
 
 WEEKDAY = ["(月)", "(火)", "(水)", "(木)", "(金)", "(土)", "(日)"]
+
+args = sys.argv
+is_sp_reg = True if len(args) > 1 and args[1] == "sp" else False
 
 mytoday = datetime.date.today()
 mynow = datetime.datetime.today()
@@ -164,7 +168,9 @@ DateList = soup.find('div', class_='DateList_Box')
 
 for DateItem in DateList.find_all('a'):
 
-    if DateItem.get('href').split('=')[-1][0] in 'np':
+    if not is_sp_reg and DateItem.get('href').split('=')[-1][0] not in 'c':
+        continue
+    elif is_sp_reg and DateItem.get('href').split('=')[-1][0] not in 'n':
         continue
 
     race_mmdd = DateItem.get('href').split('=')[-1][1:3] + "/" + DateItem.get('href').split('=')[-1][3:5]
@@ -321,8 +327,10 @@ for i in race_horse_list:
         status = "【枠順確定】"
     elif status == "出走確定":
         status = "【出走確定】"
-    else:
+    elif not is_sp_reg:
         status = "【出走想定】"
+    else:
+        status = "【特別登録】"
 
     if box_no == "1":
         frame = '<span style="border: 1px solid; background-color:#ffffff; color:#000000;">1</span> '
