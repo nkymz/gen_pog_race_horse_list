@@ -182,6 +182,8 @@ for DateItem in DateList.find_all('a'):
     r = mysession.get(target_url)  # requestsを使って、webから取得
     soup = BeautifulSoup(r.text, 'lxml')  # r.contentだと文字化けする
 
+    if not soup.find("table"):
+        continue
     for i, scheduled_horse in enumerate(soup.find("table").find_all("tr")):
         if i == 0:
             continue
@@ -225,6 +227,8 @@ for DateItem in DateList.find_all('a'):
         race_attrib_list = h1_list[1].find_all_next('p', limit=4)
         course = race_attrib_list[0].string.strip()
         race_time = race_attrib_list[1].string[-5:]
+        weather = race_attrib_list[1].string.split("/")[0].split("：")[1]
+        course_condition = race_attrib_list[1].string.split("/")[1].split("：")[1]
         race_cond1 = race_attrib_list[2].string
         race_cond2 = race_attrib_list[3].string
 
@@ -252,7 +256,7 @@ for DateItem in DateList.find_all('a'):
         race_date2 = datetime.date(race_year, race_month, race_day)
         race_date = race_date + WEEKDAY[race_date2.weekday()]
 
-        result = "00"
+        result, result_time, result_last3f = "00", "0", "0"
         result_url = None
         if race_date2 < mytoday or (race_date2 == mytoday and mynow.hour >= 17):
             result_url = race_url.replace("race_old", "race") + "&mode=result"
@@ -261,7 +265,13 @@ for DateItem in DateList.find_all('a'):
             soup = BeautifulSoup(r.content, 'lxml')  # 要素を抽出
             horse_tag = soup.find("a", href=horse_url)
             horse_row = horse_tag.find_previous("tr")
-            result = horse_row.find("td", class_="result_rank").string.zfiff(2)
+            if horse_row.find("td", class_="result_rank").string:
+                result = horse_row.find("td", class_="result_rank").string.zfill(2)
+            else:
+                result = "99"
+            result_time = horse_row.find_all("td")[7].string
+            result = horse_row.find_all("td")[8].string if result == "99" else result
+            result_last3f = horse_row.find_all("td")[11].string
 
         training_date, training_course, training_course_condition, training_jockey, training_time_list, \
             training_result_texts_list, training_position, training_stride, training_eval_text, training_eval_rank \
@@ -276,11 +286,12 @@ for DateItem in DateList.find_all('a'):
                  horse_no, box_no, horse_name, jockey, odds, pop_rank, race_url, horse_url, owner, origin, result,
                  status, isSeal, result_url, training_date, training_course, training_course_condition, training_jockey,
                  training_time_list, training_result_texts_list, training_position, training_stride, training_eval_text,
-                 training_eval_rank, prediction_marks, stable_comment])
+                 training_eval_rank, prediction_marks, stable_comment, result_time, result_last3f, weather,
+                 course_condition])
 
 race_horse_list.sort()
 
-f = open(htmlpath, mode="w")
+f = open(htmlpath, mode="w", encoding="utf-8")
 
 prev_date = None
 prev_race_no = None
@@ -315,8 +326,8 @@ for i in race_horse_list:
     result_url = i[23]
     training_date, training_course, training_course_condition, training_jockey, training_time_list, \
         training_result_texts_list, training_position, training_stride, training_eval_text, training_eval_rank, \
-        prediction_marks, stable_comment = i[24], i[25], i[26], i[27], i[28], i[29], i[30], i[31], i[32], i[33],\
-        i[34], i[35]
+        prediction_marks, stable_comment, result_time, result_last3f, weather, course_condition \
+        = i[24], i[25], i[26], i[27], i[28], i[29], i[30], i[31], i[32], i[33], i[34], i[35], i[36], i[37], i[38], i[39]
 
     sp = ' '
     
@@ -358,7 +369,11 @@ for i in race_horse_list:
         f.write('</ul></li></ul>' + s)
 
     s = '<li> <a href="' + race_url + '">' + track + race_no + sp + race_name + status + '</a><br />\n'
-    s2 = race_time + sp + course + sp + race_cond2 + '<br />\n<ul style="margin-left:-1em;">'
+    if weather == "&nbsp;":
+        s2 = race_time + sp + course + sp + race_cond2 + '<br />\n<ul style="margin-left:-1em;">'
+    else:
+        s2 = race_time + sp + course + sp + race_cond2 + sp + weather + course_condition \
+             + '<br />\n<ul style="margin-left:-1em;">'
     if prev_date is None or (prev_date is not None and race_date != prev_date):
         f.write('<ul style="margin-left:-1em;">' + s)
         f.write(s2)
@@ -372,6 +387,8 @@ for i in race_horse_list:
     elif result == "02" and grade != "NG":
         s1 = '<li><span style="font-weight: 700; color:#0000FF;">2着</span>' + sp + frame + str(horse_no) + sp \
              + '<a href="' + horse_url + '">'
+    elif result in ["中止", "除外", "取消"]:
+        s1 = "<li>" + result + sp + frame + str(horse_no) + sp + '<a href="' + horse_url + '">'
     elif result != "00":
         s1 = "<li>" + result.lstrip("0") + '着' + sp + frame + str(horse_no) + sp + '<a href="' + horse_url + '">'
     elif horse_no != "00":
@@ -386,7 +403,8 @@ for i in race_horse_list:
     f.write(s1 + s2 + owner + '</a>' + s3 + '<br />\n')
 
     f.write(origin + '<br />\n')
-
+    if result not in ["中止", "除外", "00"]:
+        f.write(result_time + "(" + result_last3f + ")<br>\n")
     if odds is not None:
         f.write(str(odds) + '倍' + sp + str(pop_rank) + '番人気' + sp + prediction_marks + '<br />\n')
     if training_date[:4] != "0000":
