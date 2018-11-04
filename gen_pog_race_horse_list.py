@@ -41,6 +41,15 @@ LOGIN_INFO = {
     'auto_login': ''
 }
 
+COLLAPSE_HTML = """
+<div onclick="obj=document.getElementById('{}{}').style; obj.display=(obj.display=='none')?'block':'none';">
+<a style="cursor:pointer;"><span style="border: 1px solid; background-color:#808080; color:#ffffff;">結果を見る</span></a><br>
+</div>
+<div id="{}{}" style="display:none;clear:both;">
+{}
+</div>
+"""
+
 mysession = requests.Session()
 login_url = "https://regist.netkeiba.com/account/"
 time.sleep(1)
@@ -192,6 +201,7 @@ for DateItem in DateList.find_all('a'):
 
         horse_name = element[0].string
         horse_url = element[0].find("a").get("href")
+        horse_id = horse_url[-11:-1]
         track = element[2].string[0:2]
         race_no = ("0" + element[2].string[2:])[-3:]
         race_name = element[3].string
@@ -258,7 +268,10 @@ for DateItem in DateList.find_all('a'):
 
         result, result_time, result_last3f = "00", "0", "0"
         result_url = None
-        if race_date2 < mytoday or (race_date2 == mytoday and mynow.hour >= 17):
+        mynow_delta = datetime.timedelta(hours=mynow.hour, minutes=mynow.minute)
+        race_time_delta = datetime.timedelta(hours=int(race_time.split(":")[0]), minutes=int(race_time.split(":")[1]))
+        time_allowance = datetime.timedelta(minutes=15)
+        if race_date2 < mytoday or (race_date2 == mytoday and mynow_delta - race_time_delta >= time_allowance):
             result_url = race_url.replace("race_old", "race") + "&mode=result"
             time.sleep(1)
             r = mysession.get(result_url)  # requestsを使って、webから取得
@@ -279,7 +292,7 @@ for DateItem in DateList.find_all('a'):
         prediction_marks = get_predictions(horse_name, race_id)
         stable_comment = get_stable_comment(int(horse_no), race_id)
 
-        sort_key = race_date + race_time + race_no + track + result + horse_no.zfill(2) + horse_name
+        sort_key = race_date + race_time + race_no + track + horse_no.zfill(2) + horse_name
 
         race_horse_list.append(
                 [sort_key, race_date, race_time, track, race_no, race_name, grade, course, race_cond1, race_cond2,
@@ -287,7 +300,7 @@ for DateItem in DateList.find_all('a'):
                  status, isSeal, result_url, training_date, training_course, training_course_condition, training_jockey,
                  training_time_list, training_result_texts_list, training_position, training_stride, training_eval_text,
                  training_eval_rank, prediction_marks, stable_comment, result_time, result_last3f, weather,
-                 course_condition])
+                 course_condition, race_id, horse_id])
 
 race_horse_list.sort()
 
@@ -326,8 +339,9 @@ for i in race_horse_list:
     result_url = i[23]
     training_date, training_course, training_course_condition, training_jockey, training_time_list, \
         training_result_texts_list, training_position, training_stride, training_eval_text, training_eval_rank, \
-        prediction_marks, stable_comment, result_time, result_last3f, weather, course_condition \
-        = i[24], i[25], i[26], i[27], i[28], i[29], i[30], i[31], i[32], i[33], i[34], i[35], i[36], i[37], i[38], i[39]
+        prediction_marks, stable_comment, result_time, result_last3f, weather, course_condition, race_id, horse_id \
+        = i[24], i[25], i[26], i[27], i[28], i[29], i[30], i[31], i[32], i[33], i[34], i[35], i[36], i[37], i[38],\
+        i[39], i[40], i[41]
 
     sp = ' '
     
@@ -381,30 +395,30 @@ for i in race_horse_list:
         f.write('</ul></li>' + s)
         f.write(s2)
 
-    if result == "01":
-        s1 = '<li><span style="font-weight: 900; color:#FF0000;">1着</span>' + sp + frame + str(horse_no) + sp \
-             + '<a href="' + horse_url + '">'
-    elif result == "02" and grade != "NG":
-        s1 = '<li><span style="font-weight: 700; color:#0000FF;">2着</span>' + sp + frame + str(horse_no) + sp \
-             + '<a href="' + horse_url + '">'
-    elif result in ["中止", "除外", "取消"]:
-        s1 = "<li>" + result + sp + frame + str(horse_no) + sp + '<a href="' + horse_url + '">'
-    elif result != "00":
-        s1 = "<li>" + result.lstrip("0") + '着' + sp + frame + str(horse_no) + sp + '<a href="' + horse_url + '">'
-    elif horse_no != "00":
+    if horse_no != "00":
         s1 = '<li>' + frame + str(horse_no) + sp + '<a href="' + horse_url + '">'
     else:
         s1 = '<li> <a href="' + horse_url + '">'
-    if isSeal:
-        s2 = '<s>' + horse_name + '</s>'
-    else:
-        s2 = horse_name
+    s2 = '<s>' + horse_name + '</s>' if isSeal else horse_name
     s3 = sp + jockey if jockey else ""
     f.write(s1 + s2 + owner + '</a>' + s3 + '<br />\n')
 
     f.write(origin + '<br />\n')
-    if result not in ["中止", "除外", "00"]:
-        f.write(result_time + "(" + result_last3f + ")<br>\n")
+
+    if result == "01":
+        s1 = '<span style="font-weight: 900; color:#FF0000;">1着</span>' + sp + result_time + "(" + result_last3f \
+             + ")<br>"
+    elif result == "02" and grade != "NG":
+        s1 = '<span style="font-weight: 700; color:#0000FF;">2着</span>' + sp + result_time + "(" + result_last3f \
+             + ")<br>"
+    elif result in ["中止", "除外", "取消"]:
+        s1 = result + "<br>"
+    elif result != "00":
+        s1 = result.lstrip("0") + '着' + sp + result_time + "(" + result_last3f + ")<br>"
+    else:
+        s1 = ""
+    if s1 != "":
+        f.write(COLLAPSE_HTML.format(race_id, horse_id, race_id, horse_id, s1))
     if odds is not None:
         f.write(str(odds) + '倍' + sp + str(pop_rank) + '番人気' + sp + prediction_marks + '<br />\n')
     if training_date[:4] != "0000":
