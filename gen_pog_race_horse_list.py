@@ -269,7 +269,11 @@ for DateItem in DateList.find_all('a'):
         result, result_time, result_last3f = "00", "0", "0"
         result_url = None
         mynow_delta = datetime.timedelta(hours=mynow.hour, minutes=mynow.minute)
-        race_time_delta = datetime.timedelta(hours=int(race_time.split(":")[0]), minutes=int(race_time.split(":")[1]))
+        if race_time.split(":")[0] != "--":
+            race_time_delta = datetime.timedelta(hours=int(race_time.split(":")[0]),
+                                                 minutes=int(race_time.split(":")[1]))
+        else:
+            race_time_delta = datetime.timedelta(hours=23, minutes=59)
         time_allowance = datetime.timedelta(minutes=15)
         if race_date2 < mytoday or (race_date2 == mytoday and mynow_delta - race_time_delta >= time_allowance):
             result_url = race_url.replace("race_old", "race") + "&mode=result"
