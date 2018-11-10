@@ -128,6 +128,13 @@ def get_training_result(horse_no, race_id):
         training_result_texts_list, training_position, training_stride, training_eval_text, training_eval_rank
 
 
+def write_last3f(result_last3f):
+    if result_last3f:
+        return "(" + result_last3f + ")<br>"
+    else:
+        return "<br>"
+
+
 xlrow = 2
 
 while wshl.cell(row=xlrow, column=1).value is not None:
@@ -410,15 +417,15 @@ for i in race_horse_list:
     f.write(origin + '<br />\n')
 
     if result == "01":
-        s1 = '<span style="font-weight: 900; color:#FF0000;">1着</span>' + sp + result_time + "(" + result_last3f \
-             + ")<br>"
+        s1 = '<span style="font-weight: 900; color:#FF0000;">1着</span>' + sp + result_time \
+             + write_last3f(result_last3f)
     elif result == "02" and grade != "NG":
-        s1 = '<span style="font-weight: 700; color:#0000FF;">2着</span>' + sp + result_time + "(" + result_last3f \
-             + ")<br>"
+        s1 = '<span style="font-weight: 700; color:#0000FF;">2着</span>' + sp + result_time \
+             + write_last3f(result_last3f)
     elif result in ["中止", "除外", "取消"]:
         s1 = result + "<br>"
     elif result != "00":
-        s1 = result.lstrip("0") + '着' + sp + result_time + "(" + result_last3f + ")<br>"
+        s1 = result.lstrip("0") + '着' + sp + result_time + write_last3f(result_last3f)
     else:
         s1 = ""
     if s1 != "":
