@@ -43,9 +43,17 @@ LOGIN_INFO = {
 
 COLLAPSE_HTML = """
 <div onclick="obj=document.getElementById('{}{}').style; obj.display=(obj.display=='none')?'block':'none';">
-<a style="cursor:pointer;"><span style="border: 1px solid; background-color:#808080; color:#ffffff;">結果を見る</span></a><br>
-</div>
+<a style="cursor:pointer;"><span style="border: 1px solid; background-color:#808080; color:#ffffff;">結果を見る
+</span></a><br></div>
 <div id="{}{}" style="display:none;clear:both;">
+{}
+</div>
+"""
+COLLAPSE_HTML_TRAINING = """
+<div onclick="obj=document.getElementById('{}{}training').style; obj.display=(obj.display=='none')?'block':'none';">
+<a style="cursor:pointer;"><span style="border: 1px solid; background-color:#808080; color:#ffffff;">調教を見る
+</span></a><br></div>
+<div id="{}{}training" style="display:none;clear:both;">
 {}
 </div>
 """
@@ -96,36 +104,58 @@ def get_predictions(horse_name, race_id):
     else:
         range_max = hn_col_index
     for i in range(2, range_max):
-        prediction_marks += predictions[i].text.strip() if predictions[i].text.strip("\n") in "◎○▲☆△" else "－"
+        prediction_marks += predictions[i].text.strip() if predictions[i].text.strip("\n") in "◎○▲☆△" else "□"
     return prediction_marks
 
 
 def get_training_result(horse_no, race_id):
-    target_url = 'http://race.netkeiba.com/?pid=race_old&id=' + "c" + race_id + '&mode=oikiri'
+    training_result_list = []
+    target_url = 'http://race.netkeiba.com/?pid=race&id=' + "c" + race_id + '&mode=oikiri'
     time.sleep(1)
     r = mysession.get(target_url)  # requestsを使って、webから取得
     soup = BeautifulSoup(r.content, 'lxml')  # 要素を抽出
 
+    if soup.find("a", href=re.compile("type=1")):
+        target_url = 'http://race.netkeiba.com' + soup.find("a", href=re.compile("type=1")).get("href")
+        time.sleep(1)
+        r = mysession.get(target_url)  # requestsを使って、webから取得
+        soup = BeautifulSoup(r.content, 'lxml')  # 要素を抽出
+
     if not soup.find("div", id="race_main").find("table"):
-        return "0000/00/00(火)", "", "", "", "", [], "", "", "", ""
+        training_result_list.append(["0000/00/00(火)", "", "", "", "", [], "", "", "", ""])
+        return training_result_list
 
-    training_result_row = soup.find("div", id="race_main").find("table").find_all("tr")[horse_no]
-    training_result_columns = training_result_row.find_all("td")
-    training_date = training_result_columns[3].text
-    if training_date.split("/")[0] == "0000":
-        return "0000/00/00(火)", "", "", "", "", [], "", "", "", ""
-    training_course = training_result_columns[4].text
-    training_course_condition = training_result_columns[5].text
-    training_jockey = training_result_columns[6].text
-    training_time_list = [t.text for t in training_result_columns[7].find("ul").find_all("li")]
-    training_result_texts_list = [t.text for t in training_result_columns[7].find_all("p")]
-    training_position = training_result_columns[8].text
-    training_stride = training_result_columns[9].text
-    training_eval_text = training_result_columns[10].text
-    training_eval_rank = training_result_columns[11].text
+    table_rows = soup.find("div", id="race_main").find("table").find_all("tr")
+    horse_nos = [t.find_all("td")[1].text for i, t in enumerate(table_rows) if i > 0]
+    horse_index = horse_nos.index(str(horse_no)) + 1
 
-    return training_date, training_course, training_course_condition, training_jockey, training_time_list, \
-        training_result_texts_list, training_position, training_stride, training_eval_text, training_eval_rank
+    training_result_row = table_rows[horse_index]
+    if training_result_row.find("td").get("rowspan"):
+        num_of_trainings = int(training_result_row.find("td").get("rowspan"))
+    else:
+        num_of_trainings = 1
+
+    for i in range(num_of_trainings):
+        columns_offset = 0 if i == 0 else 3
+        training_result_row = table_rows[horse_index + i]
+        training_result_columns = training_result_row.find_all("td")
+        training_date = training_result_columns[3 - columns_offset].text
+        if training_date.split("/")[0] == "0000":
+            training_result_list.append(["0000/00/00(火)", "", "", "", "", [], "", "", "", ""])
+        else:
+            training_course = training_result_columns[4 - columns_offset].text
+            training_course_condition = training_result_columns[5 - columns_offset].text
+            training_jockey = training_result_columns[6 - columns_offset].text
+            training_time_list = [t.text for t in training_result_columns[7 - columns_offset].find("ul").find_all("li")]
+            training_result_texts_list = [t.text for t in training_result_columns[7 - columns_offset].find_all("p")]
+            training_position = training_result_columns[8 - columns_offset].text
+            training_stride = training_result_columns[9 - columns_offset].text
+            training_eval_text = training_result_columns[10 - columns_offset].text
+            training_eval_rank = training_result_columns[11 - columns_offset].text
+            training_result_list.append([training_date, training_course, training_course_condition, training_jockey,
+                                         training_time_list, training_result_texts_list, training_position,
+                                         training_stride, training_eval_text, training_eval_rank])
+    return training_result_list
 
 
 def write_last3f(result_last3f):
@@ -297,9 +327,7 @@ for DateItem in DateList.find_all('a'):
             result = horse_row.find_all("td")[8].string if result == "99" else result
             result_last3f = horse_row.find_all("td")[11].string
 
-        training_date, training_course, training_course_condition, training_jockey, training_time_list, \
-            training_result_texts_list, training_position, training_stride, training_eval_text, training_eval_rank \
-            = get_training_result(int(horse_no), race_id)
+        training_result_list = get_training_result(int(horse_no), race_id)
         prediction_marks = get_predictions(horse_name, race_id)
         stable_comment = get_stable_comment(int(horse_no), race_id)
 
@@ -308,10 +336,8 @@ for DateItem in DateList.find_all('a'):
         race_horse_list.append(
                 [sort_key, race_date, race_time, track, race_no, race_name, grade, course, race_cond1, race_cond2,
                  horse_no, box_no, horse_name, jockey, odds, pop_rank, race_url, horse_url, owner, origin, result,
-                 status, isSeal, result_url, training_date, training_course, training_course_condition, training_jockey,
-                 training_time_list, training_result_texts_list, training_position, training_stride, training_eval_text,
-                 training_eval_rank, prediction_marks, stable_comment, result_time, result_last3f, weather,
-                 course_condition, race_id, horse_id])
+                 status, isSeal, result_url, training_result_list, prediction_marks, stable_comment, result_time,
+                 result_last3f, weather, course_condition, race_id, horse_id])
 
 race_horse_list.sort()
 
@@ -348,11 +374,9 @@ for i in race_horse_list:
     status = i[21]
     isSeal = i[22]
     result_url = i[23]
-    training_date, training_course, training_course_condition, training_jockey, training_time_list, \
-        training_result_texts_list, training_position, training_stride, training_eval_text, training_eval_rank, \
-        prediction_marks, stable_comment, result_time, result_last3f, weather, course_condition, race_id, horse_id \
-        = i[24], i[25], i[26], i[27], i[28], i[29], i[30], i[31], i[32], i[33], i[34], i[35], i[36], i[37], i[38],\
-        i[39], i[40], i[41]
+    training_result_list, prediction_marks, stable_comment, result_time, result_last3f, weather, course_condition, \
+        race_id, horse_id \
+        = i[24], i[25], i[26], i[27], i[28], i[29], i[30], i[31], i[32]
 
     sp = ' '
     
@@ -430,21 +454,31 @@ for i in race_horse_list:
         s1 = ""
     if s1 != "":
         f.write(COLLAPSE_HTML.format(race_id, horse_id, race_id, horse_id, s1))
-    if odds is not None:
+    if odds:
         f.write(str(odds) + '倍' + sp + str(pop_rank) + '番人気' + sp + prediction_marks + '<br />\n')
-    if training_date[:4] != "0000":
-        s = training_jockey + sp + training_date.split("/")[1] + "/" + training_date.split("/")[2].split("(")[0] + sp \
-            + training_course + sp + training_course_condition + sp + training_stride + sp + "<br />\n"
-        for t in training_time_list:
-            s += t + " " if t != "-" else ""
-        s += "[" + training_position + "]" + "<br />\n" if training_position else "<br />\n"
-        for t in training_result_texts_list:
-            s += t + sp
-        s += "<br />\n" if training_result_texts_list else ""
-        s += training_eval_text + training_eval_rank + "<br />\n"
-        f.write(s)
+
     if stable_comment != "":
         f.write(stable_comment + "<br />\n")
+
+    s = '<table border="1">'
+    for training_result_row in training_result_list:
+        training_date, training_course, training_course_condition, training_jockey, training_time_list, \
+            training_result_texts_list, training_position, training_stride, training_eval_text, training_eval_rank \
+            = training_result_row
+        if training_date[:4] != "0000":
+            s += "<tr><td>" + training_jockey + sp + training_date.split("/")[1] + "/" \
+                 + training_date.split("/")[2].split("(")[0] + sp + training_course + sp + training_course_condition \
+                 + sp + training_stride + sp + "<br />\n"
+            for t in training_time_list:
+                s += t + " " if t != "-" else ""
+            s += "[" + training_position + "]" + "<br />\n" if training_position else "<br />\n"
+            for t in training_result_texts_list:
+                s += t + "<br>\n"
+            s += training_eval_text + training_eval_rank + "<br /></td><tr>\n"
+    if s != '<table border="1">':
+        s += "</table>"
+        f.write(COLLAPSE_HTML_TRAINING.format(race_id, horse_id, race_id, horse_id, s))
+
     f.write('</li>\n')
 
     prev_date = race_date
